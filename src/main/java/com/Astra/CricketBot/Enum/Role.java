@@ -1,0 +1,6 @@
+package com.Astra.CricketBot.Enum;
+
+public enum Role {
+    ROLE_USER,
+    ROLE_ADMIN
+}
