@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .csrf(csrf->csrf.disable())
                 .formLogin(form->form.disable())
                 .authorizeHttpRequests(auth->auth
-                        .requestMatchers("/users/register","/users/login").permitAll()
+                        .requestMatchers("/users/register","/users/login","/verify").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

@@ -5,7 +5,9 @@ import com.Astra.CricketBot.Enum.Role;
 import com.Astra.CricketBot.dto.LoginRequest;
 import com.Astra.CricketBot.dto.RegisterRequest;
 import com.Astra.CricketBot.model.Users;
+import com.Astra.CricketBot.model.VerificationToken;
 import com.Astra.CricketBot.repo.UsersRepo;
+import com.Astra.CricketBot.repo.VerificationRepo;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +15,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,10 +24,17 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class UserService {
+
+    @Autowired
+    JavaMailSender mailSender;
+    @Autowired
+    VerificationRepo verificationRepo;
 
     @Autowired
     JwtService jwtService;
@@ -46,7 +57,7 @@ public class UserService {
     @Autowired
     PasswordEncoder passwordEncoder;
 
-    public Users register(RegisterRequest request){
+    public String register(RegisterRequest request){
         if (usersRepo.findByUserName(request.getUserName()).isPresent()){
             throw new RuntimeException("Username exists already");
         }
@@ -54,8 +65,24 @@ public class UserService {
         users.setUserName(request.getUserName());
         users.setEmail(request.getEmail());
         users.setRole(Role.ROLE_USER);
+        users.setVerified(false);
         users.setPassword(passwordEncoder.encode(request.getPassword()));
-        return usersRepo.save(users);
+        usersRepo.save(users);
+        String token = UUID.randomUUID().toString();
+        VerificationToken verificationToken = new VerificationToken();
+        verificationToken.setOtp(token);
+        verificationToken.setUsers(users);
+        verificationToken.setExpiryTime(
+                LocalDateTime.now().plusMinutes(5)
+        );
+        verificationRepo.save(verificationToken);
+        String verifyLink = "http://localhost:8080/verify?token=" + token;
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(users.getEmail());
+        message.setSubject("Email Verification");
+        message.setText(verifyLink);
+        mailSender.send(message);
+        return "Verification Code Sent";
     }
 
     public String login(LoginRequest request){
@@ -65,6 +92,11 @@ public class UserService {
                         request.getPassword()
                 )
         );
+        Users users = usersRepo.findByUserName(request.getUserName()).orElseThrow(()->new RuntimeException("User Not Found"));
+        if(users == null || !users.isVerified()){
+            throw new RuntimeException("Verify Email First");
+        }
+
             return jwtService.genToken(request.getUserName());
     }
 

@@ -14,6 +14,8 @@ public class Users {
     private String email;
     private String password;
 
+    private boolean verified;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 
@@ -54,5 +56,13 @@ public class Users {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
     }
 }
